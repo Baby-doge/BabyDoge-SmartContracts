@@ -143,7 +143,11 @@ contract ERC721Farm is Ownable, ReentrancyGuard, IERC721Farm{
             if (pending > 0) {
                 rewardToken.transfer(account, pending);
             }
-            totalPendingReward -= pending;
+            if (totalPendingReward >= pending) {
+                totalPendingReward -= pending;
+            } else {
+                totalPendingReward = 0;
+            }
         }
 
         for(uint i = 0; i < tokenIds.length; i++) {
@@ -203,7 +207,11 @@ contract ERC721Farm is Ownable, ReentrancyGuard, IERC721Farm{
 
         if (pending > 0) {
             rewardToken.transfer(address(msg.sender), pending);
-            totalPendingReward -= pending;
+            if (totalPendingReward >= pending) {
+                totalPendingReward -= pending;
+            } else {
+                totalPendingReward = 0;
+            }
         }
 
         user.rewardDebt = user.tokenIds.length * accTokenPerShare / PRECISION_FACTOR;
@@ -224,7 +232,11 @@ contract ERC721Farm is Ownable, ReentrancyGuard, IERC721Farm{
         uint256[] memory tokenArray = user.tokenIds;
         uint256 tokensAmount = tokenArray.length;
         uint256 pending = tokensAmount * accTokenPerShare / PRECISION_FACTOR - user.rewardDebt;
-        totalPendingReward -= pending;
+        if (totalPendingReward >= pending) {
+            totalPendingReward -= pending;
+        } else {
+            totalPendingReward = 0;
+        }
         delete user.tokenIds;
         user.rewardDebt = 0;
 
@@ -266,11 +278,15 @@ contract ERC721Farm is Ownable, ReentrancyGuard, IERC721Farm{
         _updatePool();
 
         if(_tokenAddress == address(rewardToken)){
+            _collectFee();
             uint256 allowedAmount = rewardToken.balanceOf(address(this)) - totalPendingReward;
             require(_tokenAmount <= allowedAmount, "Over allowed amount");
         }
 
         IERC20(_tokenAddress).transfer(address(msg.sender), _tokenAmount);
+        if(_tokenAddress == address(rewardToken)){
+            lastRewardTokenBalance = rewardToken.balanceOf(address(this));
+        }
         emit AdminTokenRecovery(_tokenAddress, _tokenAmount);
     }
 
@@ -449,7 +465,7 @@ contract ERC721Farm is Ownable, ReentrancyGuard, IERC721Farm{
         uint256 incomeFee = farmDeployer.incomeFee();
         if (incomeFee > 0) {
             uint256 rewardBalance = rewardToken.balanceOf(address(this));
-            if(rewardBalance != lastRewardTokenBalance) {
+            if(rewardBalance > lastRewardTokenBalance) {
                 uint256 income = rewardBalance - lastRewardTokenBalance;
                 uint256 feeAmount = income * incomeFee / 10_000;
                 rewardToken.transfer(farmDeployer.feeReceiver(), feeAmount);

@@ -115,7 +115,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
         PRECISION_FACTOR = uint256(10**(30 - decimalsRewardToken));
         require(decimalsRewardToken >= 5 && decimalsStakeToken >= 5, "Invalid decimals");
 
-        defaultStakePPS = 10 ** (decimalsStakeToken - 4);
+        defaultStakePPS = 10 ** (decimalsStakeToken - decimalsStakeToken / 2);
     }
 
 
@@ -166,7 +166,11 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
             if (pending > 0) {
                 rewardToken.transfer(account, pending);
             }
-            totalPendingReward -= pending;
+            if (totalPendingReward >= pending) {
+                totalPendingReward -= pending;
+            } else {
+                totalPendingReward = 0;
+            }
         }
 
         uint256 depositedAmount = 0;
@@ -228,7 +232,11 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
 
         if (pending > 0) {
             rewardToken.transfer(address(msg.sender), pending);
-            totalPendingReward -= pending;
+            if (totalPendingReward >= pending) {
+                totalPendingReward -= pending;
+            } else {
+                totalPendingReward = 0;
+            }
         }
         lastRewardTokenBalance = rewardToken.balanceOf(address(this));
 
@@ -248,7 +256,11 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
         uint256 amountToTransfer = user.shares * pricePerShare();
 
         uint256 pending = user.shares * accTokenPerShare / PRECISION_FACTOR - user.rewardDebt;
-        totalPendingReward -= pending;
+        if (totalPendingReward >= pending) {
+            totalPendingReward -= pending;
+        } else {
+            totalPendingReward = 0;
+        }
         user.shares = 0;
         user.rewardDebt = 0;
 
@@ -291,7 +303,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
      * @notice Calculates Price Per Share
      */
     function pricePerShare() public view returns(uint256) {
-        if(keepReflectionOnDeposit && stakeTotalShares > 10000) {
+        if(keepReflectionOnDeposit && stakeTotalShares > 1000) {
             return stakeToken.balanceOf(address(this)) / stakeTotalShares;
         }
         return defaultStakePPS;
@@ -319,11 +331,19 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
         }
 
         if(_tokenAddress == address(rewardToken)){
-            uint256 allowedAmount = rewardToken.balanceOf(address(this)) - totalPendingReward;
+            _collectFee();
+            uint256 sameTokens = 0;
+            if(_tokenAddress == address(stakeToken)){
+                sameTokens = stakeTotalShares * pricePerShare();
+            }
+            uint256 allowedAmount = rewardToken.balanceOf(address(this)) - totalPendingReward - sameTokens;
             require(_tokenAmount <= allowedAmount, "Over allowed amount");
         }
 
         IERC20(_tokenAddress).transfer(address(msg.sender), _tokenAmount);
+        if(_tokenAddress == address(rewardToken)){
+            lastRewardTokenBalance = rewardToken.balanceOf(address(this));
+        }
         emit AdminTokenRecovery(_tokenAddress, _tokenAmount);
     }
 
@@ -551,7 +571,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
         uint256 incomeFee = farmDeployer.incomeFee();
         if (incomeFee > 0) {
             uint256 rewardBalance = rewardToken.balanceOf(address(this));
-            if(rewardBalance != lastRewardTokenBalance) {
+            if(rewardBalance > lastRewardTokenBalance) {
                 uint256 income = rewardBalance - lastRewardTokenBalance;
                 uint256 feeAmount = income * incomeFee / 10_000;
                 rewardToken.transfer(farmDeployer.feeReceiver(), feeAmount);

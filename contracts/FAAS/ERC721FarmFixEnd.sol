@@ -151,7 +151,11 @@ contract ERC721FarmFixEnd is Ownable, ReentrancyGuard, IERC721FarmFixEnd{
             pending = amountOfTokens * accTokenPerShare / PRECISION_FACTOR - user.rewardDebt;
             if (pending > 0) {
                 rewardsAmount = _transferReward(account, pending);
-                totalPendingReward -= pending;
+                if (totalPendingReward >= pending) {
+                    totalPendingReward -= pending;
+                } else {
+                    totalPendingReward = 0;
+                }
             }
         }
 
@@ -211,7 +215,11 @@ contract ERC721FarmFixEnd is Ownable, ReentrancyGuard, IERC721FarmFixEnd{
         uint256 rewardsAmount = 0;
         if (pending > 0) {
             rewardsAmount = _transferReward(address(msg.sender), pending);
-            totalPendingReward -= pending;
+            if (totalPendingReward >= pending) {
+                totalPendingReward -= pending;
+            } else {
+                totalPendingReward = 0;
+            }
         }
 
         user.rewardDebt = user.tokenIds.length * accTokenPerShare / PRECISION_FACTOR;
@@ -230,7 +238,11 @@ contract ERC721FarmFixEnd is Ownable, ReentrancyGuard, IERC721FarmFixEnd{
         uint256[] memory tokenArray = user.tokenIds;
         uint256 tokensAmount = tokenArray.length;
         uint256 pending = tokensAmount * accTokenPerShare / PRECISION_FACTOR - user.rewardDebt;
-        totalPendingReward -= pending;
+        if (totalPendingReward >= pending) {
+            totalPendingReward -= pending;
+        } else {
+            totalPendingReward = 0;
+        }
         delete user.tokenIds;
         user.rewardDebt = 0;
 
@@ -281,7 +293,7 @@ contract ERC721FarmFixEnd is Ownable, ReentrancyGuard, IERC721FarmFixEnd{
      * @return Price Per Share of Reward token
      */
     function rewardPPS() public view returns(uint256) {
-        if(rewardTotalShares > 10000) {
+        if(rewardTotalShares > 1000) {
             return rewardToken.balanceOf(address(this)) / rewardTotalShares;
         }
         return defaultRewardPPS;
@@ -297,11 +309,13 @@ contract ERC721FarmFixEnd is Ownable, ReentrancyGuard, IERC721FarmFixEnd{
         address _tokenAddress,
         uint256 _tokenAmount
     ) external onlyOwner {
+        _updatePool();
         if(_tokenAddress == address(rewardToken)){
-            uint256 allowedAmount = (rewardTotalShares - totalPendingReward) * rewardPPS();
+            uint256 _rewardPPS = rewardPPS();
+            uint256 allowedAmount = (rewardTotalShares - totalPendingReward) * _rewardPPS;
             require(_tokenAmount <= allowedAmount, "Over pending rewards");
-            if(rewardTotalShares * rewardPPS() > _tokenAmount) {
-                rewardTotalShares -= _tokenAmount / rewardPPS();
+            if(rewardTotalShares * _rewardPPS > _tokenAmount) {
+                rewardTotalShares -= _tokenAmount / _rewardPPS;
             } else {
                 rewardTotalShares = 0;
             }

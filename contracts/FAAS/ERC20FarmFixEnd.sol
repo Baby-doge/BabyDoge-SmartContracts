@@ -123,7 +123,7 @@ contract ERC20FarmFixEnd is Ownable, ReentrancyGuard, IERC20FarmFixEnd{
         if (_rewardToken == _stakeToken) {
             defaultStakePPS = defaultRewardPPS;
         } else {
-            defaultStakePPS = 10 ** (decimalsStakeToken - 4);
+            defaultStakePPS = 10 ** (decimalsStakeToken - decimalsStakeToken / 2);
         }
     }
 
@@ -174,7 +174,11 @@ contract ERC20FarmFixEnd is Ownable, ReentrancyGuard, IERC20FarmFixEnd{
             pending = user.shares * accTokenPerShare / PRECISION_FACTOR - user.rewardDebt;
             if (pending > 0) {
                 rewardsAmount = _transferReward(account, pending);
-                totalPendingReward -= pending;
+                if (totalPendingReward >= pending) {
+                    totalPendingReward -= pending;
+                } else {
+                    totalPendingReward = 0;
+                }
             }
         }
 
@@ -230,7 +234,11 @@ contract ERC20FarmFixEnd is Ownable, ReentrancyGuard, IERC20FarmFixEnd{
         uint256 rewardsAmount = 0;
         if (pending > 0) {
             rewardsAmount = _transferReward(address(msg.sender), pending);
-            totalPendingReward -= pending;
+            if (totalPendingReward >= pending) {
+                totalPendingReward -= pending;
+            } else {
+                totalPendingReward = 0;
+            }
         }
 
         emit Withdraw(msg.sender, transferredAmount, _shares, rewardsAmount);
@@ -247,7 +255,11 @@ contract ERC20FarmFixEnd is Ownable, ReentrancyGuard, IERC20FarmFixEnd{
         uint256 shares = user.shares;
 
         uint256 pending = user.shares * accTokenPerShare / PRECISION_FACTOR - user.rewardDebt;
-        totalPendingReward -= pending;
+        if (totalPendingReward >= pending) {
+            totalPendingReward -= pending;
+        } else {
+            totalPendingReward = 0;
+        }
         user.shares = 0;
         user.rewardDebt = 0;
 
@@ -297,13 +309,13 @@ contract ERC20FarmFixEnd is Ownable, ReentrancyGuard, IERC20FarmFixEnd{
      * @return Price Per Share of Stake token
      */
     function stakePPS() public view returns(uint256) {
-        if(stakeTotalShares > 10000) {
+        if(stakeTotalShares > 1000) {
             if(address(stakeToken) != address(rewardToken)){
                 return stakeToken.balanceOf(address(this)) / stakeTotalShares;
             } else {
                 return stakeToken.balanceOf(address(this)) / (stakeTotalShares + rewardTotalShares);
             }
-        } else if (address(stakeToken) == address(rewardToken) && rewardTotalShares > 10000) {
+        } else if (address(stakeToken) == address(rewardToken) && rewardTotalShares > 0) {
             return rewardPPS();
         }
         return defaultStakePPS;
@@ -315,13 +327,13 @@ contract ERC20FarmFixEnd is Ownable, ReentrancyGuard, IERC20FarmFixEnd{
      * @return Price Per Share of Reward token
      */
     function rewardPPS() public view returns(uint256) {
-        if(rewardTotalShares > 10000) {
+        if(rewardTotalShares > 1000) {
             if(address(stakeToken) != address(rewardToken)){
                 return rewardToken.balanceOf(address(this)) / rewardTotalShares;
             } else {
                 return rewardToken.balanceOf(address(this)) / (stakeTotalShares + rewardTotalShares);
             }
-        } else if (address(stakeToken) == address(rewardToken) && stakeTotalShares > 10000) {
+        } else if (address(stakeToken) == address(rewardToken) && stakeTotalShares > 0) {
             return stakePPS();
         }
         return defaultRewardPPS;
@@ -342,6 +354,7 @@ contract ERC20FarmFixEnd is Ownable, ReentrancyGuard, IERC20FarmFixEnd{
         require(!(address(stakeToken) == address(rewardToken)
             && _tokenAddress == address(stakeToken))
             , "Not allowed");
+        _updatePool();
 
         if(_tokenAddress == address(stakeToken)){
             require(_tokenAmount <= (stakeToken.balanceOf(address(this)) - stakeTotalShares * stakePPS())
@@ -349,10 +362,15 @@ contract ERC20FarmFixEnd is Ownable, ReentrancyGuard, IERC20FarmFixEnd{
         }
 
         if(_tokenAddress == address(rewardToken)){
-            uint256 allowedAmount = (rewardTotalShares - totalPendingReward) * rewardPPS();
+            uint256 _rewardPPS = rewardPPS();
+            uint256 sameTokens = 0;
+            if(_tokenAddress == address(stakeToken)){
+                sameTokens = stakeTotalShares * stakePPS();
+            }
+            uint256 allowedAmount = (rewardTotalShares - totalPendingReward) * _rewardPPS - sameTokens;
             require(_tokenAmount <= allowedAmount, "Over pending rewards");
-            if(rewardTotalShares * rewardPPS() > _tokenAmount) {
-                rewardTotalShares -= _tokenAmount / rewardPPS();
+            if(rewardTotalShares * _rewardPPS > _tokenAmount) {
+                rewardTotalShares -= _tokenAmount / _rewardPPS;
             } else {
                 rewardTotalShares = 0;
             }
