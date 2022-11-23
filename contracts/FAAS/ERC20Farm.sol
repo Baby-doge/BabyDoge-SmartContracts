@@ -184,16 +184,17 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
             uint256 subsequentBalance = stakeToken.balanceOf(address(this));
             depositedAmount = subsequentBalance - initialBalance;
         }
-        require(depositedAmount > defaultStakePPS, "Below minimum amount");
+        uint256 newShares = depositedAmount / PPS;
+        require(newShares >= 100, "Below minimum amount");
 
-        user.shares = user.shares + depositedAmount / PPS;
-        stakeTotalShares += depositedAmount / PPS;
+        user.shares = user.shares + newShares;
+        stakeTotalShares += newShares;
 
         user.rewardDebt = user.shares * accTokenPerShare / PRECISION_FACTOR;
         user.depositBlock = block.number;
         lastRewardTokenBalance = rewardToken.balanceOf(address(this));
 
-        emit Deposit(account, depositedAmount, depositedAmount / PPS, pending);
+        emit Deposit(account, depositedAmount, newShares, pending);
     }
 
 
