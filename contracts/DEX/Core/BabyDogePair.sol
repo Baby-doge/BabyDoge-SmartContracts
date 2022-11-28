@@ -90,11 +90,10 @@ contract BabyDogePair is IBabyDogePair, BabyDogeERC20 {
     factory = msg.sender;
   }
 
-  /*
-   * Params
-   * address - What's address of 1st token?
-   * address - What's address of 2nd token?
-   * address - What's address of the router?
+  /**
+   * @param _token0 address of the 1st token
+   * @param _token1 address of the 2nd token
+   * @param _router address of the router
    *
    * Called once by the factory at time of deployment
    * Only this router will be allowed to interact with a factory
@@ -221,15 +220,13 @@ contract BabyDogePair is IBabyDogePair, BabyDogeERC20 {
     emit Burn(msg.sender, amount0, amount1, to);
   }
 
-  /*
-   * Params
-   * uint256 - What amount of 1st token do you want to get? (one of amounts will be 0)
-   * uint256 - What amount of 2nd token do you want to get? (one of amounts will be 0)
-   * address - What address do you want to transfer the tokens to?
-   * bytes - What is the function you want to execute after tokens transfer? (optional)
-   *
-   * Function will only work with Baby Doge Router
-   * this low-level function should be called from a contract which performs important safety checks
+  /**
+   * @notice Function will only work with Baby Doge Router,
+   *         this low-level function should be called from a contract which performs important safety checks
+   * @param amount0Out Amount of 1st token to get (one of amounts need to be 0)
+   * @param amount1Out Amount of 2nd token to get (one of amounts need to be 0)
+   * @param to Address to transfer the tokens to
+   * @param data Data to execute on the receiving contract 'BabyDogeCall' function
    */
 
   function swap(
