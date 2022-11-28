@@ -70,13 +70,11 @@ contract BabyDogeFactory is IBabyDogeFactory {
         feeToSetter = _feeToSetter;
     }
 
-    /*
-     * Params
-     * address _router - address of the router that will be deployed
-     *
-     * Only our router will be able to communicate with the pair contracts.
-     * Flash Swaps disabled.
-     * Router controls the amount of fees swapper is paying.
+    /**
+     * @notice Only our router will be able to communicate with the pair contracts.
+     *         Flash Swaps disabled
+     *         Router controls the amount of fees swapper is paying
+     * @param _router Address of the router that will be deployed
      */
 
     function setRouter(address _router) external {
