@@ -53,7 +53,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
         uint256 depositBlock; // Reward debt
     }
 
-    /*
+    /**
      * @notice Initialize the contract
      * @param _stakeToken: stake token address
      * @param _rewardToken: reward token address
@@ -119,7 +119,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
     }
 
 
-    /*
+    /**
      * @notice Deposit staked tokens on behalf of msg.sender and collect reward tokens (if any)
      * @param amount: amount to deposit (in stakedToken)
      */
@@ -128,7 +128,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
     }
 
 
-    /*
+    /**
      * @notice Deposit staked tokens on behalf account and collect reward tokens (if any)
      * @param amount: amount to deposit (in stakedToken)
      * @param account: future owner of deposit
@@ -138,7 +138,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
     }
 
 
-    /*
+    /**
      * @notice Deposit staked tokens and collect reward tokens (if any)
      * @param amount: amount to deposit (in stakedToken)
      * @param account: future owner of deposit
@@ -198,7 +198,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
     }
 
 
-    /*
+    /**
      * @notice Withdraw staked tokens and collect reward tokens
      * @notice Early withdrawal has a penalty
      * @param _shares: amount of shares to withdraw
@@ -245,7 +245,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
     }
 
 
-    /*
+    /**
      * @notice Withdraw staked tokens without caring about rewards
      * @notice Early withdrawal has a penalty
      * @dev Needs to be for emergency.
@@ -285,7 +285,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
     }
 
 
-    /*
+    /**
      * @notice Calculates the last block number according to available funds
      */
     function getFinalBlockNumber() public view returns (uint256) {
@@ -300,7 +300,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
     }
 
 
-    /*
+    /**
      * @notice Calculates Price Per Share
      */
     function pricePerShare() public view returns(uint256) {
@@ -311,7 +311,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
     }
 
 
-    /*
+    /**
      * @notice Allows Owner to withdraw ERC20 tokens from the contract
      * @notice Can't withdraw deposited funds
      * @param _tokenAddress: Address of ERC20 token contract
@@ -349,7 +349,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
     }
 
 
-    /*
+    /**
      * @notice Sets start block of the pool
      * @param _startBlock: Number of start block
      */
@@ -363,7 +363,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
     }
 
 
-    /*
+    /**
      * @notice Sets reward amount per block
      * @param _rewardPerBlock: Token amount to be distributed for each block
      */
@@ -375,7 +375,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
     }
 
 
-    /*
+    /**
      * @notice Sets maximum amount of tokens 1 user is able to stake. 0 for no limit
      * @param _userStakeLimit: Maximum amount of tokens allowed to stake
      */
@@ -386,7 +386,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
     }
 
 
-    /*
+    /**
      * @notice Sets early withdrawal fee
      * @param _earlyWithdrawalFee: Early withdrawal fee (in basis points)
      */
@@ -399,7 +399,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
     }
 
 
-    /*
+    /**
      * @notice Sets minimum amount of blocks that should pass before user can withdraw
      * his deposit without a fee
      * @param _minimumLockTime: Number of blocks
@@ -413,7 +413,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
     }
 
 
-    /*
+    /**
      * @notice Sets calculation of reflection tokens on deposit
      * @param _keepReflectionOnDeposit: Should contract keep track of reflections of deposit tokens?
      * @dev Can only be set to true
@@ -428,7 +428,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
     }
 
 
-    /*
+    /**
      * @notice Sets receivers of fees for early withdrawal
      * @param _feeReceiver: Address of fee receiver
      */
@@ -442,7 +442,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
     }
 
 
-    /*
+    /**
      * @notice Sets farm variables
      * @param _startBlock: Number of start block
      * @param _rewardPerBlock: Token amount to be distributed for each block
@@ -498,7 +498,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
     }
 
 
-    /*
+    /**
      * @notice View function to see pending reward on frontend.
      * @param _user: user address
      * @return Pending reward for a given user
@@ -517,7 +517,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
     }
 
 
-    /*
+    /**
      * @notice Updates pool variables
      */
     function _updatePool() private {
@@ -539,7 +539,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
     }
 
 
-    /*
+    /**
      * @notice Calculates number of blocks to pay reward for.
      * @param _from: Starting block
      * @param _to: Ending block
@@ -564,7 +564,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
     }
 
 
-    /*
+    /**
      * @notice Calculates reward token income and transfers specific fee amount.
      * @notice Fee share and fee receiver are specified on Deployer contract
      */
