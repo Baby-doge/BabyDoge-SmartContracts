@@ -47,6 +47,7 @@ contract ERC721FarmFixEnd is Ownable, ReentrancyGuard, IERC721FarmFixEnd{
 
     // The precision factor
     uint256 public PRECISION_FACTOR;
+    uint256 private constant MIN_SHARES = 100;
 
     // Info of each user that stakes tokens (stakeToken)
     mapping(address => UserInfo) public userInfo;
@@ -267,7 +268,7 @@ contract ERC721FarmFixEnd is Ownable, ReentrancyGuard, IERC721FarmFixEnd{
      * @dev Internal function for smart contract calculations
      */
     function _rewardPerBlock() private view returns (uint256) {
-        if(endBlock < lastRewardBlock) {
+        if(endBlock <= lastRewardBlock) {
             return 0;
         }
         return (rewardTotalShares - totalPendingReward) / (endBlock - lastRewardBlock);
@@ -281,7 +282,7 @@ contract ERC721FarmFixEnd is Ownable, ReentrancyGuard, IERC721FarmFixEnd{
      */
     function rewardPerBlock() external view returns (uint256) {
         uint256 firstBlock = stakeTokenSupply == 0 ? block.number : lastRewardBlock;
-        if(endBlock < firstBlock) {
+        if(endBlock <= firstBlock) {
             return 0;
         }
         return (rewardTotalShares - totalPendingReward) / (endBlock - firstBlock);
@@ -293,7 +294,7 @@ contract ERC721FarmFixEnd is Ownable, ReentrancyGuard, IERC721FarmFixEnd{
      * @return Price Per Share of Reward token
      */
     function rewardPPS() public view returns(uint256) {
-        if(rewardTotalShares > 1000) {
+        if(rewardTotalShares >= MIN_SHARES) {
             return rewardToken.balanceOf(address(this)) / rewardTotalShares;
         }
         return defaultRewardPPS;

@@ -43,6 +43,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
 
     // The precision factor
     uint256 public PRECISION_FACTOR;
+    uint256 private constant MIN_SHARES = 100;
 
     // Info of each user that stakes tokens (stakeToken)
     mapping(address => UserInfo) public userInfo;
@@ -134,6 +135,11 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
      * @param account: future owner of deposit
      */
     function depositOnBehalf(uint256 amount, address account) external {
+        require(tx.origin == account
+            || earlyWithdrawalFee == 0
+            || minimumLockTime == 0,
+            "Not allowed"
+        );
         _deposit(amount, account);
     }
 
@@ -185,7 +191,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
             depositedAmount = subsequentBalance - initialBalance;
         }
         uint256 newShares = depositedAmount / PPS;
-        require(newShares >= 100, "Below minimum amount");
+        require(newShares >= MIN_SHARES, "Below minimum amount");
 
         user.shares = user.shares + newShares;
         stakeTotalShares += newShares;
@@ -206,15 +212,20 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
     function withdraw(uint256 _shares) external nonReentrant {
         _collectFee();
         UserInfo storage user = userInfo[msg.sender];
-        require(user.shares >= _shares, "Amount to withdraw too high");
+        uint256 _userShares = user.shares;
+        require(_userShares >= _shares, "Amount to withdraw too high");
+
+        if (_userShares - _shares < MIN_SHARES) {
+            _shares = _userShares;
+        }
 
         _updatePool();
 
-        uint256 pending = user.shares * accTokenPerShare / PRECISION_FACTOR - user.rewardDebt;
+        uint256 pending = _userShares * accTokenPerShare / PRECISION_FACTOR - user.rewardDebt;
         uint256 transferAmount = _shares * pricePerShare();
 
         if (_shares > 0) {
-            user.shares = user.shares - _shares;
+            user.shares = _userShares - _shares;
             uint256 earliestBlockToWithdrawWithoutFee = user.depositBlock + minimumLockTime;
             if(block.number < earliestBlockToWithdrawWithoutFee){
                 uint256 feeAmount = transferAmount * earlyWithdrawalFee / 10000;
@@ -304,7 +315,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
      * @notice Calculates Price Per Share
      */
     function pricePerShare() public view returns(uint256) {
-        if(keepReflectionOnDeposit && stakeTotalShares > 1000) {
+        if(keepReflectionOnDeposit && stakeTotalShares >= MIN_SHARES) {
             return stakeToken.balanceOf(address(this)) / stakeTotalShares;
         }
         return defaultStakePPS;
@@ -368,6 +379,7 @@ contract ERC20Farm is Ownable, ReentrancyGuard, IERC20Farm{
      * @param _rewardPerBlock: Token amount to be distributed for each block
      */
     function setRewardPerBlock(uint256 _rewardPerBlock) public onlyOwner {
+        _updatePool();
         require(_rewardPerBlock != 0);
         rewardPerBlock = _rewardPerBlock;
 

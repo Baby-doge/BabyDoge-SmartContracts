@@ -53,6 +53,7 @@ contract ERC20FarmFixEnd is Ownable, ReentrancyGuard, IERC20FarmFixEnd{
 
     // The precision factor
     uint256 public PRECISION_FACTOR;
+    uint256 private constant MIN_SHARES = 100;
 
     // Info of each user that stakes tokens (stakeToken)
     mapping(address => UserInfo) public userInfo;
@@ -143,6 +144,11 @@ contract ERC20FarmFixEnd is Ownable, ReentrancyGuard, IERC20FarmFixEnd{
      * @param account: future owner of deposit
      */
     function depositOnBehalf(uint256 amount, address account) external {
+        require(tx.origin == account
+            || earlyWithdrawalFee == 0
+            || minimumLockTime == 0,
+            "Not allowed"
+        );
         _deposit(amount, account);
     }
 
@@ -194,7 +200,7 @@ contract ERC20FarmFixEnd is Ownable, ReentrancyGuard, IERC20FarmFixEnd{
             depositedAmount = subsequentBalance - initialBalance;
         }
         uint256 newShares = depositedAmount / PPS;
-        require(newShares >= 100, "Below minimum amount");
+        require(newShares >= MIN_SHARES, "Below minimum amount");
 
         user.shares = user.shares + newShares;
         stakeTotalShares += newShares;
@@ -213,15 +219,20 @@ contract ERC20FarmFixEnd is Ownable, ReentrancyGuard, IERC20FarmFixEnd{
      */
     function withdraw(uint256 _shares) external nonReentrant {
         UserInfo storage user = userInfo[msg.sender];
+        uint256 _userShares = user.shares;
         require(user.shares >= _shares, "Amount to withdraw too high");
+
+        if (_userShares - _shares < MIN_SHARES) {
+            _shares = _userShares;
+        }
 
         _updatePool();
 
-        uint256 pending = user.shares * accTokenPerShare / PRECISION_FACTOR - user.rewardDebt;
+        uint256 pending = _userShares * accTokenPerShare / PRECISION_FACTOR - user.rewardDebt;
 
         uint256 transferredAmount = 0;
         if (_shares > 0) {
-            user.shares = user.shares - _shares;
+            user.shares = _userShares - _shares;
             uint256 earliestBlockToWithdrawWithoutFee = user.depositBlock + minimumLockTime;
             if(block.number < earliestBlockToWithdrawWithoutFee){
                 transferredAmount = _transferStakeWithFee(address(msg.sender), _shares);
@@ -284,7 +295,7 @@ contract ERC20FarmFixEnd is Ownable, ReentrancyGuard, IERC20FarmFixEnd{
      * @dev Internal function for smart contract calculations
      */
     function _rewardPerBlock() private view returns (uint256) {
-        if(endBlock < lastRewardBlock) {
+        if(endBlock <= lastRewardBlock) {
             return 0;
         }
         return (rewardTotalShares - totalPendingReward) / (endBlock - lastRewardBlock);
@@ -298,7 +309,7 @@ contract ERC20FarmFixEnd is Ownable, ReentrancyGuard, IERC20FarmFixEnd{
      */
     function rewardPerBlock() external view returns (uint256) {
         uint256 firstBlock = stakeTotalShares == 0 ? block.number : lastRewardBlock;
-        if(endBlock < firstBlock) {
+        if(endBlock <= firstBlock) {
             return 0;
         }
         return (rewardTotalShares - totalPendingReward) / (endBlock - firstBlock);
@@ -310,7 +321,7 @@ contract ERC20FarmFixEnd is Ownable, ReentrancyGuard, IERC20FarmFixEnd{
      * @return Price Per Share of Stake token
      */
     function stakePPS() public view returns(uint256) {
-        if(stakeTotalShares > 1000) {
+        if(stakeTotalShares >= MIN_SHARES) {
             if(address(stakeToken) != address(rewardToken)){
                 return stakeToken.balanceOf(address(this)) / stakeTotalShares;
             } else {
@@ -328,7 +339,7 @@ contract ERC20FarmFixEnd is Ownable, ReentrancyGuard, IERC20FarmFixEnd{
      * @return Price Per Share of Reward token
      */
     function rewardPPS() public view returns(uint256) {
-        if(rewardTotalShares > 1000) {
+        if(rewardTotalShares >= MIN_SHARES) {
             if(address(stakeToken) != address(rewardToken)){
                 return rewardToken.balanceOf(address(this)) / rewardTotalShares;
             } else {
@@ -516,18 +527,21 @@ contract ERC20FarmFixEnd is Ownable, ReentrancyGuard, IERC20FarmFixEnd{
      * @param amount: Amount of reward token
      */
     function addReward(uint256 amount) external {
-        require(amount != 0);
+        uint256 _rewardPPS = rewardPPS();
+        uint256 initialBalance = rewardToken.balanceOf(address(this));
         rewardToken.transferFrom(msg.sender, address(this), amount);
+        uint256 rewardsAmount = rewardToken.balanceOf(address(this)) - initialBalance;
+        require(rewardsAmount > _rewardPPS);
 
         uint256 incomeFee = farmDeployer.incomeFee();
         uint256 feeAmount = 0;
         if (incomeFee > 0) {
-            feeAmount = amount * farmDeployer.incomeFee() / 10_000;
+            feeAmount = rewardsAmount * farmDeployer.incomeFee() / 10_000;
             rewardToken.transfer(farmDeployer.feeReceiver(), feeAmount);
         }
-        uint256 finalAmount = amount - feeAmount;
+        uint256 finalAmount = rewardsAmount - feeAmount;
 
-        rewardTotalShares += finalAmount / rewardPPS();
+        rewardTotalShares += finalAmount / _rewardPPS;
         emit RewardIncome(finalAmount);
     }
 
@@ -629,6 +643,7 @@ contract ERC20FarmFixEnd is Ownable, ReentrancyGuard, IERC20FarmFixEnd{
         if(feeReceiver != address(this)) {
             _transferStake(feeReceiver, feeAmount);
         } else if(address(stakeToken) == address(rewardToken)) {
+            stakeTotalShares -= feeAmount;
             rewardTotalShares += feeAmount;
         }
     }
